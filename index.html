@@ -112,14 +112,21 @@ const API="https://script.google.com/macros/s/AKfycbxgPSykjjhLT-OoZO8rCfklr1UI8z
 const norm=s=>String(s??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"");
 const findCol=(heads, candidates)=>heads.findIndex(h=>candidates.includes(norm(h)));
 function drawSheetRank(rows){
- if(!rows||rows.length<2)return false;
- const h=rows[0],idx={
-  rang:findCol(h,["rang"]), joueur:findCol(h,["joueur"]), chapeau:findCol(h,["chapeau"]),
+ if(!rows||!rows.length)return false;
+ // Certaines feuilles ont un titre ou des lignes vides avant les en-têtes.
+ let headerRow=0, h=rows[0], idx;
+ for(let k=0;k<Math.min(rows.length,10);k++){
+  const candidate=rows[k]||[];
+  const playerCol=candidate.findIndex(v=>norm(v).includes("joueur"));
+  if(playerCol>=0){headerRow=k;h=candidate;break;}
+ }
+ idx={
+  rang:findCol(h,["rang"]), joueur:h.findIndex(v=>norm(v).includes("joueur")), chapeau:findCol(h,["chapeau"]),
   mj:findCol(h,["mj"]),v:findCol(h,["v"]),n:findCol(h,["n"]),d:findCol(h,["d"]),
   bp:findCol(h,["bp"]),bc:findCol(h,["bc"]),diff:findCol(h,["diff"]),points:findCol(h,["points","pts"]),zone:findCol(h,["zone"])
  };
  if(idx.joueur<0)return false;
- const data=rows.slice(1).filter(r=>r[idx.joueur]);
+ const data=rows.slice(headerRow+1).filter(r=>r[idx.joueur]);
  document.getElementById("rk").innerHTML='<div class="card scroll"><table class="rk"><tr><th>#</th><th>Joueur</th><th>MJ</th><th>V</th><th>N</th><th>D</th><th>BP</th><th>BC</th><th>Diff</th><th>Pts</th><th>Zone</th></tr>'+
  data.map((r,i)=>{const hat=idx.chapeau>=0?Number(r[idx.chapeau]):0;const color=C[hat-1]||"var(--mut)";return '<tr class="'+(i<4?"z1":i<12?"z2":"z3")+'"><td><b>'+(idx.rang>=0?r[idx.rang]:i+1)+'</b></td><td><span class="dot" style="background:'+color+'"></span>'+r[idx.joueur]+'</td><td>'+(idx.mj>=0?r[idx.mj]:"")+'</td><td>'+(idx.v>=0?r[idx.v]:"")+'</td><td>'+(idx.n>=0?r[idx.n]:"")+'</td><td>'+(idx.d>=0?r[idx.d]:"")+'</td><td>'+(idx.bp>=0?r[idx.bp]:"")+'</td><td>'+(idx.bc>=0?r[idx.bc]:"")+'</td><td>'+(idx.diff>=0?r[idx.diff]:"")+'</td><td><b>'+(idx.points>=0?r[idx.points]:"")+'</b></td><td>'+(idx.zone>=0?r[idx.zone]:"")+'</td></tr>'}).join("")+
  '</table></div>';

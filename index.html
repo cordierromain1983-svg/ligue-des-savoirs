@@ -108,23 +108,68 @@ pl.onchange=()=>{
     return `<div class="row" style="--c:${hv(op)}"><span class="j">J${i+1}</span><span>${nm(op)}</span><span class="chip">Chapeau ${op[0]}</span></div>`}).join("")+"</div>";
 };
 document.getElementById("all").innerHTML=`<details><summary>Afficher les 8 journées</summary><div class="scroll"><table><tr><th>Journée</th><th>Matchs</th></tr>${S.map((J,i)=>`<tr><td><b>J${i+1}</b></td><td>${J.map(m=>`${nm(m[0])} – ${nm(m[1])}`).join(" · ")}</td></tr>`).join("")}</table></div></details>`;
-const DATA={};
-let L={};try{L=JSON.parse(localStorage.getItem("lds")||"{}")}catch(e){}
-const key=(j,i)=>j+"-"+i,res=()=>({...DATA,...L});
-function rank(){
- const st={};H.forEach((h,hi)=>h.forEach((n,k)=>{const c=(hi+1)+""+k;st[c]={c,mj:0,v:0,n:0,d:0,bp:0,bc:0,pts:0}}));
- const R=res(),up=(x,f,c)=>{x.mj++;x.bp+=f;x.bc+=c;if(f>c){x.v++;x.pts+=3}else if(f==c){x.n++;x.pts++}else x.d++};
- S.forEach((J,j)=>J.forEach((m,i)=>{const r=R[key(j+1,i)];if(!r||!Number.isInteger(r[0])||!Number.isInteger(r[1]))return;up(st[m[0]],r[0],r[1]);up(st[m[1]],r[1],r[0])}));
- return Object.values(st).sort((p,q)=>q.pts-p.pts||(q.bp-q.bc)-(p.bp-p.bc)||q.bp-p.bp);
+const API="https://script.google.com/macros/s/AKfycbxgPSykjjhLT-OoZO8rCfklr1UI8zvN1L778opEf6USFBBRZpqcYp5XwwmeJ1i8fzJidA/exec";
+const norm=s=>String(s??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"");
+const findCol=(heads, candidates)=>heads.findIndex(h=>candidates.includes(norm(h)));
+function drawSheetRank(rows){
+ if(!rows||rows.length<2)return false;
+ const h=rows[0],idx={
+  rang:findCol(h,["rang"]), joueur:findCol(h,["joueur"]), chapeau:findCol(h,["chapeau"]),
+  mj:findCol(h,["mj"]),v:findCol(h,["v"]),n:findCol(h,["n"]),d:findCol(h,["d"]),
+  bp:findCol(h,["bp"]),bc:findCol(h,["bc"]),diff:findCol(h,["diff"]),points:findCol(h,["points","pts"]),zone:findCol(h,["zone"])
+ };
+ if(idx.joueur<0)return false;
+ const data=rows.slice(1).filter(r=>r[idx.joueur]);
+ document.getElementById("rk").innerHTML='<div class="card scroll"><table class="rk"><tr><th>#</th><th>Joueur</th><th>MJ</th><th>V</th><th>N</th><th>D</th><th>BP</th><th>BC</th><th>Diff</th><th>Pts</th><th>Zone</th></tr>'+
+ data.map((r,i)=>{const hat=idx.chapeau>=0?Number(r[idx.chapeau]):0;const color=C[hat-1]||"var(--mut)";return '<tr class="'+(i<4?"z1":i<12?"z2":"z3")+'"><td><b>'+(idx.rang>=0?r[idx.rang]:i+1)+'</b></td><td><span class="dot" style="background:'+color+'"></span>'+r[idx.joueur]+'</td><td>'+(idx.mj>=0?r[idx.mj]:"")+'</td><td>'+(idx.v>=0?r[idx.v]:"")+'</td><td>'+(idx.n>=0?r[idx.n]:"")+'</td><td>'+(idx.d>=0?r[idx.d]:"")+'</td><td>'+(idx.bp>=0?r[idx.bp]:"")+'</td><td>'+(idx.bc>=0?r[idx.bc]:"")+'</td><td>'+(idx.diff>=0?r[idx.diff]:"")+'</td><td><b>'+(idx.points>=0?r[idx.points]:"")+'</b></td><td>'+(idx.zone>=0?r[idx.zone]:"")+'</td></tr>'}).join("")+
+ '</table></div>';
+ return true;
 }
-function drawRank(){
- document.getElementById("rk").innerHTML=`<div class="card scroll"><table class="rk"><tr><th>#</th><th>Joueur</th><th>MJ</th><th>V</th><th>N</th><th>D</th><th>+/−</th><th>Pts</th></tr>${rank().map((p,i)=>{const d=p.bp-p.bc;return `<tr class="z${i<4?1:i<12?2:3}"><td><b>${i+1}</b></td><td><span class="dot" style="background:${hv(p.c)}"></span>${nm(p.c)}</td><td>${p.mj}</td><td>${p.v}</td><td>${p.n}</td><td>${p.d}</td><td>${d>0?"+":""}${d}</td><td><b>${p.pts}</b></td></tr>`}).join("")}</table><p class="leg"><span class="k1"></span>Quarts directs<span class="k2"></span>Barrages<span class="k3"></span>Coupe de consolation</p></div>`}
-drawRank();
-const tp=document.getElementById("tp"),R0=res();
-tp.innerHTML=`<div class="scroll"><table>${S.map((J,j)=>J.map((m,i)=>{const v=R0[key(j+1,i)]||[];return `<tr><td>J${j+1}</td><td>${nm(m[0])}</td><td><input type="number" min="0" max="6" data-k="${key(j+1,i)}" data-s="0" value="${v[0]??""}"></td><td><input type="number" min="0" max="6" data-k="${key(j+1,i)}" data-s="1" value="${v[1]??""}"></td><td>${nm(m[1])}</td></tr>`}).join("")).join("")}</table></div><p><button id="cp">Copier les résultats</button> <button id="rz">Effacer (cet appareil)</button></p><textarea id="js" readonly rows="3"></textarea>`;
-tp.oninput=e=>{const t=e.target,k=t.dataset.k;if(!k)return;const cur=L[k]||(DATA[k]?[...DATA[k]]:[null,null]),n=parseInt(t.value,10);cur[+t.dataset.s]=isNaN(n)?null:Math.min(6,Math.max(0,n));L[k]=cur;try{localStorage.setItem("lds",JSON.stringify(L))}catch(x){}drawRank()};
-tp.onclick=e=>{if(e.target.id==="cp"){const o={},R=res();for(const k in R)if(Number.isInteger(R[k][0])&&Number.isInteger(R[k][1]))o[k]=R[k];const s=JSON.stringify(o),ta=document.getElementById("js");ta.value=s;ta.select();try{navigator.clipboard.writeText(s)}catch(x){}}
- if(e.target.id==="rz"&&confirm("Effacer les scores saisis sur cet appareil ?")){try{localStorage.removeItem("lds")}catch(x){}location.reload()}};
+function drawSheetMatches(rows){
+ if(!rows||rows.length<2)return;
+ const h=rows[0],c={
+  jour:findCol(h,["journee"]),a:findCol(h,["joueura"]),b:findCol(h,["joueurb"]),
+  sa:findCol(h,["butsa"]),sb:findCol(h,["butsb"]),played:findCol(h,["joue"])
+ };
+ if([c.jour,c.a,c.b].some(i=>i<0))return;
+ const matches={};
+ rows.slice(1).forEach(r=>{
+  const j=Number(r[c.jour]),a=String(r[c.a]||"").trim(),b=String(r[c.b]||"").trim();
+  if(!j||!a||!b)return;
+  const valid=(c.sa>=0&&c.sb>=0&&String(r[c.sa]).trim()!==""&&String(r[c.sb]).trim()!=="");
+  const played=c.played<0?valid:/^(oui|yes|true|1|x)$/i.test(String(r[c.played]).trim())&&valid;
+  matches[j+"|"+a+"|"+b]={a,b,sa:valid?r[c.sa]:"",sb:valid?r[c.sb]:"",played};
+  matches[j+"|"+b+"|"+a]={a,b,sa:valid?r[c.sa]:"",sb:valid?r[c.sb]:"",played,reverse:true};
+ });
+ document.getElementById("all").innerHTML='<details open><summary>Afficher les 8 journées</summary><div class="scroll"><table><tr><th>Journée</th><th>Match</th><th>Score</th></tr>'+
+ S.map((J,i)=>J.map(m=>{
+  const a=nm(m[0]),b=nm(m[1]),v=matches[(i+1)+"|"+a+"|"+b];
+  let score="À jouer";
+  if(v&&v.played) score=v.reverse?(v.sb+" – "+v.sa):(v.sa+" – "+v.sb);
+  return '<tr><td>J'+(i+1)+'</td><td>'+a+' – '+b+'</td><td><b>'+score+'</b></td></tr>';
+ }).join("")).join("")+'</table></div></details>';
+}
+document.getElementById("tp").innerHTML='<p>Les scores sont désormais gérés dans le Google Sheets, onglet <b>Saisie</b>. Modifie les résultats dans le tableur : le site les affichera ici automatiquement.</p><p id="syncStatus" class="leg">Chargement des résultats…</p><button id="refreshScores">Actualiser les résultats</button>';
+function loadScores(){
+ const status=document.getElementById("syncStatus");
+ if(status)status.textContent="Chargement des résultats…";
+ const callbackName="ldsReceive_"+Date.now();
+ window[callbackName]=function(data){
+  try{
+   const okRank=drawSheetRank(data.classement);
+   drawSheetMatches(data.saisie);
+   if(status)status.textContent=okRank?"Résultats synchronisés depuis Google Sheets.":"Données reçues, mais les colonnes du classement n’ont pas été reconnues.";
+  }catch(err){if(status)status.textContent="Erreur lors de l’affichage des résultats."}
+  delete window[callbackName];
+  script.remove();
+ };
+ const script=document.createElement("script");
+ script.src=API+"?callback="+callbackName+"&t="+Date.now();
+ script.onerror=function(){if(status)status.textContent="Impossible de charger les résultats. Vérifie le déploiement Apps Script.";delete window[callbackName];script.remove()};
+ document.head.appendChild(script);
+}
+document.getElementById("refreshScores").onclick=loadScores;
+loadScores();
 </script>
 </body>
 </html>

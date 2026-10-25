@@ -133,24 +133,36 @@ function drawSheetRank(rows){
  return true;
 }
 function drawSheetMatches(rows){
- if(!rows||rows.length<2)return;
- const h=rows[0],c={
-  jour:findCol(h,["journee"]),a:findCol(h,["joueura"]),b:findCol(h,["joueurb"]),
-  sa:findCol(h,["butsa"]),sb:findCol(h,["butsb"]),played:findCol(h,["joue"])
+ if(!rows||!rows.length)return;
+ // Cherche les en-têtes même si la feuille contient un titre ou des lignes vides.
+ let headerRow=-1,h=[];
+ for(let k=0;k<Math.min(rows.length,10);k++){
+  const candidate=rows[k]||[];
+  const jour=findCol(candidate,["journee","jour"]);
+  const a=findCol(candidate,["joueura"]);
+  const b=findCol(candidate,["joueurb"]);
+  if(jour>=0&&a>=0&&b>=0){headerRow=k;h=candidate;break;}
+ }
+ if(headerRow<0)return;
+ const c={
+  jour:findCol(h,["journee","jour"]),a:findCol(h,["joueura"]),b:findCol(h,["joueurb"]),
+  sa:findCol(h,["butsa"]),sb:findCol(h,["butsb"]),played:findCol(h,["joue","joue?"])
  };
- if([c.jour,c.a,c.b].some(i=>i<0))return;
+ const keyName=s=>String(s??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim().toLowerCase().replace(/\s+/g," ");
  const matches={};
- rows.slice(1).forEach(r=>{
-  const j=Number(r[c.jour]),a=String(r[c.a]||"").trim(),b=String(r[c.b]||"").trim();
+ rows.slice(headerRow+1).forEach(r=>{
+  const j=Number(String(r[c.jour]||"").trim()),a=String(r[c.a]||"").trim(),b=String(r[c.b]||"").trim();
   if(!j||!a||!b)return;
-  const valid=(c.sa>=0&&c.sb>=0&&String(r[c.sa]).trim()!==""&&String(r[c.sb]).trim()!=="");
-  const played=c.played<0?valid:/^(oui|yes|true|1|x)$/i.test(String(r[c.played]).trim())&&valid;
-  matches[j+"|"+a+"|"+b]={a,b,sa:valid?r[c.sa]:"",sb:valid?r[c.sb]:"",played};
-  matches[j+"|"+b+"|"+a]={a,b,sa:valid?r[c.sa]:"",sb:valid?r[c.sb]:"",played,reverse:true};
+  const sa=c.sa>=0?String(r[c.sa]??"").trim():"",sb=c.sb>=0?String(r[c.sb]??"").trim():"";
+  const valid=sa!==""&&sb!=="";
+  const flag=c.played<0?"":String(r[c.played]??"").trim();
+  const played=valid&&(!flag||/^(oui|yes|true|1|x|vrai)$/i.test(flag));
+  matches[j+"|"+keyName(a)+"|"+keyName(b)]={sa,sb,played};
+  matches[j+"|"+keyName(b)+"|"+keyName(a)]={sa,sb,played,reverse:true};
  });
  document.getElementById("all").innerHTML='<details open><summary>Afficher les 8 journées</summary><div class="scroll"><table><tr><th>Journée</th><th>Match</th><th>Score</th></tr>'+
  S.map((J,i)=>J.map(m=>{
-  const a=nm(m[0]),b=nm(m[1]),v=matches[(i+1)+"|"+a+"|"+b];
+  const a=nm(m[0]),b=nm(m[1]),v=matches[(i+1)+"|"+keyName(a)+"|"+keyName(b)];
   let score="À jouer";
   if(v&&v.played) score=v.reverse?(v.sb+" – "+v.sa):(v.sa+" – "+v.sb);
   return '<tr><td>J'+(i+1)+'</td><td>'+a+' – '+b+'</td><td><b>'+score+'</b></td></tr>';
